@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{1914A4D5-BA7A-422E-AF23-C1D59872B6A1}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>CupheadRunRecap</RootNamespace>
+    <AssemblyName>CupheadRunRecap</AssemblyName>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="LiveSplit.Core">
+      <HintPath>..\Livesplit References\LiveSplit.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="UpdateManager">
+      <HintPath>..\Livesplit References\UpdateManager.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Component.cs" />
+    <Compile Include="ComponentSettings.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="ComponentSettings.Designer.cs">
+      <DependentUpon>ComponentSettings.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Factory.cs" />
+    <Compile Include="Game\Enums.cs" />
+    <Compile Include="Game\LogManager.cs" />
+    <Compile Include="Game\MemoryManager.cs" />
+    <Compile Include="Memory\AutoDeref.cs" />
+    <Compile Include="Memory\FindOffset.cs" />
+    <Compile Include="Memory\FindPointerSignature.cs" />
+    <Compile Include="Memory\IFindPointer.cs" />
+    <Compile Include="Memory\MemInfo.cs" />
+    <Compile Include="Memory\MemoryReader.cs" />
+    <Compile Include="Memory\MemorySearcher.cs" />
+    <Compile Include="Memory\Module64.cs" />
+    <Compile Include="Memory\ModuleInfo.cs" />
+    <Compile Include="Memory\PointerVersion.cs" />
+    <Compile Include="Memory\ProgramPointer.cs" />
+    <Compile Include="Memory\WinAPI.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
