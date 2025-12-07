@@ -12,6 +12,7 @@ using LiveSplit.Options;
 using System.Linq;
 using System.IO;
 using System.ComponentModel;
+using System.Reflection;
 
 namespace CupheadRunRecap
 {
@@ -30,6 +31,20 @@ namespace CupheadRunRecap
         private bool isRunning = false;
         public XmlDocument runRecapTree;
         public string previousSceneName;
+        public string lastSeenSceneName;
+        //public bool storedScoreboardData = false;
+        //public bool savedScoreboardData = false;
+        public bool savedSceneData = false;
+        public string level;
+        public float levelTime;
+        public int hpBonus;
+        public int parries;
+        public int superMeter;
+        public int coins;
+        public bool useCoinsInsteadOfSuperMeter;
+        public bool isRunInProgreess = false;
+        public TimeSpan? SegmentStartTime;
+        public TimeSpan? SegmentEndTime;
 
 
         public Component(LiveSplitState state)
@@ -75,7 +90,7 @@ namespace CupheadRunRecap
                         stopWatch.Start();
                         try
                         {
-                            if (memory.HookProcess())
+                            if (memory.HookProcess() && isRunInProgreess)
                             {
                                 MainLoop();
                             }
@@ -103,48 +118,229 @@ namespace CupheadRunRecap
         private void MainLoop()
         {
             string sceneName = memory.SceneName();
+            bool isLoading = memory.Loading();
             //log.AddEntry(new EventLogEntry(sceneName));
             //System.Diagnostics.Debug.WriteLine(sceneName);
-            if (sceneName == "scene_win" && previousSceneName.StartsWith("scene_level"))
+
+            // just loading the scoreboard -> mark current loadless time
+            if (sceneName == "scene_win" && isLoading && !savedSceneData)
             {
-                log.AddEntry(new EventLogEntry("Attempting to log level data"));
-                runRecapTree.Load(RUN_RECAP_FILEPATH);
-                XmlNode attemptNode = runRecapTree.SelectSingleNode($".//Attempt[@id='{Model.CurrentState.Run.AttemptHistory.Last().Index + 1}']");
-                
-                if (attemptNode != null)
-                {
-                    log.AddEntry(new EventLogEntry("Found attemptNode"));
-                    XmlElement levelElement = runRecapTree.CreateElement("Level");
-                    XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
-                    sceneNameAttribute.Value = previousSceneName;
-                    levelElement.Attributes.Append(sceneNameAttribute);
+                SaveLevelData(lastSeenSceneName);
+                //ResetSegmentTiming();
+                StoreScoreboardData();
+                savedSceneData = true;
+            }
+            // exiting the scoreboard -> mark current loadless time, scoring data, and save it all to the xml
+            else if (lastSeenSceneName == "scene_win" && isLoading && !savedSceneData)
+            {
+                SaveScoreboardData();
+                ClearScoreboardData();
+                //ResetSegmentTiming();
+                savedSceneData = true;
+            }
+            // any other scene change -> save segment time
+            else if (isLoading && !savedSceneData)
+            {
+                SaveGenericSceneData(lastSeenSceneName);
+                savedSceneData = true;
+            }
 
-                    XmlElement levelTimeElement = runRecapTree.CreateElement("Time");
-                    levelTimeElement.InnerText = ((float)Math.Truncate(memory.ScoringTime() * 100) / 100).ToString("F2");
-                    levelElement.AppendChild(levelTimeElement);
-
-                    XmlElement levelParriesElement = runRecapTree.CreateElement("Parries");
-                    levelParriesElement.InnerText = memory.ScoringParries().ToString();
-                    levelElement.AppendChild(levelParriesElement);
-
-                    attemptNode.AppendChild(levelElement);
-                    runRecapTree.Save(RUN_RECAP_FILEPATH);
-                }
+            if (!isLoading)
+            {
+                savedSceneData = false;
+            }
 
 
+            if (sceneName != previousSceneName)
+            {
+                lastSeenSceneName = previousSceneName;
+                log.AddEntry(new EventLogEntry("Scene change: sceneName " + sceneName + " - previousSceneName " + previousSceneName + " - lastSeenSceneName " + lastSeenSceneName));
             }
             previousSceneName = sceneName;
         }
+        private void SaveLevelData(string sceneName)
+        {
+            SegmentEndTime = Model.CurrentState.CurrentTime.GameTime;
+            XmlNode attemptNode = LoadRunRecapFileAndLocateCurrentAttempt();
 
+            if (attemptNode != null)
+            {
+                XmlElement levelElement = runRecapTree.CreateElement("Scene");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                sceneNameAttribute.Value = sceneName;
+                levelElement.Attributes.Append(sceneNameAttribute);
+
+                XmlElement levelTimeElement = runRecapTree.CreateElement("LevelTime");
+                levelTimeElement.InnerText = ((float)Math.Truncate(memory.ScoringTime() * 100) / 100).ToString("F2");
+                levelElement.AppendChild(levelTimeElement);
+
+                //TODO: add nullability checks?
+
+
+                //XmlElement StartTimeElement = runRecapTree.CreateElement("StartTime");
+                //StartTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D3}",
+                //    SegmentStartTime.Value.Hours,
+                //    SegmentStartTime.Value.Minutes,
+                //    SegmentStartTime.Value.Seconds,
+                //    SegmentStartTime.Value.Milliseconds
+                //);
+                //levelElement.AppendChild(StartTimeElement);
+
+                XmlElement EndTimeElement = runRecapTree.CreateElement("EndTime");
+                EndTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}.{3:D3}",
+                    SegmentEndTime.Value.Hours,
+                    SegmentEndTime.Value.Minutes,
+                    SegmentEndTime.Value.Seconds,
+                    SegmentEndTime.Value.Milliseconds
+                );
+                levelElement.AppendChild(EndTimeElement);
+
+                attemptNode.AppendChild(levelElement);
+                runRecapTree.Save(RUN_RECAP_FILEPATH);
+            }
+            SegmentEndTime = null;
+        }
+        private void StoreScoreboardData()
+        {
+            //SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
+            level = "scene_win";
+            log.AddEntry(new EventLogEntry(levelTime.ToString()));
+            var scoringHits = memory.ScoringHits();
+            hpBonus = (scoringHits >= 3) ? 0 : (3 - scoringHits);
+            parries = memory.ScoringParries();
+            superMeter = memory.ScoringSuperMeter();
+            coins = memory.ScoringCoins();
+            useCoinsInsteadOfSuperMeter = memory.ScoringUseCoinsInsteadOfSuperMeter();
+            //savedScoreboardData = false;
+            //storedScoreboardData = true;
+        }
+        private void SaveScoreboardData()
+        {
+            SegmentEndTime = Model.CurrentState.CurrentTime.GameTime;
+            XmlNode attemptNode = LoadRunRecapFileAndLocateCurrentAttempt();
+
+            if (attemptNode != null)
+            {
+                XmlElement levelElement = runRecapTree.CreateElement("Scene");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                sceneNameAttribute.Value = level;
+                levelElement.Attributes.Append(sceneNameAttribute);
+
+                XmlElement levelHPElement = runRecapTree.CreateElement("HPBonus");
+                levelHPElement.InnerText = hpBonus.ToString();
+                levelElement.AppendChild(levelHPElement);
+
+                XmlElement levelParriesElement = runRecapTree.CreateElement("Parries");
+                levelParriesElement.InnerText = parries.ToString();
+                levelElement.AppendChild(levelParriesElement);
+
+                if (!useCoinsInsteadOfSuperMeter)
+                {
+                    XmlElement levelSuperMeterElement = runRecapTree.CreateElement("SuperMeter");
+                    levelSuperMeterElement.InnerText = superMeter.ToString();
+                    levelElement.AppendChild(levelSuperMeterElement);
+                }
+                else
+                {
+                    XmlElement levelCoinsElement = runRecapTree.CreateElement("Coins");
+                    levelCoinsElement.InnerText = coins.ToString();
+                    levelElement.AppendChild(levelCoinsElement);
+                }
+                //TODO: add nullability checks - can crash if the timer is started after a scoreboard's start
+
+                
+                //XmlElement StartTimeElement = runRecapTree.CreateElement("StartTime");
+                //StartTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D3}",
+                //    SegmentStartTime.Value.Hours,
+                //    SegmentStartTime.Value.Minutes,
+                //    SegmentStartTime.Value.Seconds,
+                //    SegmentStartTime.Value.Milliseconds
+                //);
+                //levelElement.AppendChild(StartTimeElement);
+
+                XmlElement EndTimeElement = runRecapTree.CreateElement("EndTime");
+                EndTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}.{3:D3}",
+                    SegmentEndTime.Value.Hours,
+                    SegmentEndTime.Value.Minutes,
+                    SegmentEndTime.Value.Seconds,
+                    SegmentEndTime.Value.Milliseconds
+                );
+                levelElement.AppendChild(EndTimeElement);
+
+                attemptNode.AppendChild(levelElement);
+                runRecapTree.Save(RUN_RECAP_FILEPATH);
+                //savedScoreboardData = true;
+            }
+            SegmentEndTime = null;
+        }
+        private void ClearScoreboardData()
+        {
+            level = "";
+            levelTime = 0f;
+            hpBonus = 3;
+            parries = 0;
+            superMeter = 0;
+            coins = 0;
+            useCoinsInsteadOfSuperMeter = false;
+            //savedScoreboardData = true;
+            //storedScoreboardData = false;
+        }
+        private void SaveGenericSceneData(string sceneName)
+        {
+            SegmentEndTime = Model.CurrentState.CurrentTime.GameTime;
+            XmlNode attemptNode = LoadRunRecapFileAndLocateCurrentAttempt();
+
+            if (attemptNode != null)
+            {
+                XmlElement levelElement = runRecapTree.CreateElement("Scene");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                sceneNameAttribute.Value = sceneName;
+                levelElement.Attributes.Append(sceneNameAttribute);
+                //TODO: add nullability checks?
+
+
+                //XmlElement StartTimeElement = runRecapTree.CreateElement("StartTime");
+                //StartTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}:{3:D3}",
+                //    SegmentStartTime.Value.Hours,
+                //    SegmentStartTime.Value.Minutes,
+                //    SegmentStartTime.Value.Seconds,
+                //    SegmentStartTime.Value.Milliseconds
+                //);
+                //levelElement.AppendChild(StartTimeElement);
+
+                XmlElement EndTimeElement = runRecapTree.CreateElement("EndTime");
+                EndTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}.{3:D3}",
+                    SegmentEndTime.Value.Hours,
+                    SegmentEndTime.Value.Minutes,
+                    SegmentEndTime.Value.Seconds,
+                    SegmentEndTime.Value.Milliseconds
+                );
+                levelElement.AppendChild(EndTimeElement);
+
+                attemptNode.AppendChild(levelElement);
+                runRecapTree.Save(RUN_RECAP_FILEPATH);
+            }
+            SegmentEndTime = null;
+        }
+        //private void ResetSegmentTiming()
+        //{
+        //    SegmentStartTime = SegmentEndTime;
+        //    SegmentEndTime = null;
+        //}
+        private XmlNode LoadRunRecapFileAndLocateCurrentAttempt()
+        {
+            runRecapTree.Load(RUN_RECAP_FILEPATH);
+            return runRecapTree.SelectSingleNode($".//Attempt[@id='{Model.CurrentState.Run.AttemptHistory.Last().Index + 1}']");
+        }
         public void Update(IInvalidator invalidator, LiveSplitState lvstate, float width, float height, LayoutMode mode) { }
         public void OnReset(object sender, TimerPhase e) { }
         public void OnResume(object sender, EventArgs e) { }
         public void OnPause(object sender, EventArgs e) { }
         public void OnStart(object sender, EventArgs e)
         {
+            isRunInProgreess = true;
             try
             {
-                log.AddEntry(new EventLogEntry("Creating document for attempt " + (Model.CurrentState.Run.AttemptHistory.Last().Index + 1).ToString()));
                 runRecapTree = new XmlDocument();
                 if (!File.Exists(RUN_RECAP_FILEPATH))
                 {
@@ -166,8 +362,6 @@ namespace CupheadRunRecap
                 attempt.Attributes.Append(attemptNumber);
                 runRecapTree.DocumentElement.AppendChild(attempt);
                 runRecapTree.Save(RUN_RECAP_FILEPATH);
-                log.AddEntry(new EventLogEntry("Successfully created document for attempt " + (Model.CurrentState.Run.AttemptHistory.Last().Index + 1).ToString()));
-
 
                 previousSceneName = "none";
             }
@@ -176,10 +370,47 @@ namespace CupheadRunRecap
                 log.AddEntry(new EventLogEntry(ex.ToString()));
             }
 
+            SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
         }
         public void OnUndoSplit(object sender, EventArgs e) { }
         public void OnSkipSplit(object sender, EventArgs e) { }
-        public void OnSplit(object sender, EventArgs e) { }
+        public void OnSplit(object sender, EventArgs e) {
+            // if the final split has been hit, save data about the final segment
+            log.AddEntry(new EventLogEntry("OnSplit Event"));
+            if (Model.CurrentState.CurrentSplitIndex >= Model.CurrentState.Run.Count)
+            {
+                isRunInProgreess = false;
+                log.AddEntry(new EventLogEntry("Last Split Hit"));
+                string sceneName = memory.SceneName();
+                // if we're in the middle of a level, save that level's data
+                if (sceneName.StartsWith("scene_level"))
+                {
+                    SaveLevelData(sceneName);
+                }
+                // else, the player is likely running some oddball custom category, so save generic scene data
+                else
+                {
+                    SaveGenericSceneData(sceneName);
+                }
+
+                XmlNode attemptNode = LoadRunRecapFileAndLocateCurrentAttempt();
+
+                if (attemptNode != null)
+                {
+                    XmlElement RunTimeElement = runRecapTree.CreateElement("RunTime");
+                    TimeSpan? gameTime = Model.CurrentState.CurrentTime.GameTime;
+                    RunTimeElement.InnerText = string.Format("{0:D2}:{1:D2}:{2:D2}.{3:D3}",
+                        gameTime.Value.Hours,
+                        gameTime.Value.Minutes,
+                        gameTime.Value.Seconds,
+                        gameTime.Value.Milliseconds
+                    );
+
+                    attemptNode.AppendChild(RunTimeElement);
+                    runRecapTree.Save(RUN_RECAP_FILEPATH);
+                }
+            }
+        }
         public Control GetSettingsControl(LayoutMode mode) { return settings; }
         public void SetSettings(XmlNode document) { settings.SetSettings(document); }
         public XmlNode GetSettings(XmlDocument document) { return settings.UpdateSettings(document); }

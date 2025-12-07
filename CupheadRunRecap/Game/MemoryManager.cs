@@ -113,6 +113,82 @@ namespace CupheadRunRecap
             }
             return 0;
         }
+        public int ScoringHits()
+        {
+            int offset = -0x20;
+            switch (PlayerData.Version)
+            {
+                case PointerVersion.SteamDLC: offset = 0x0; break;
+            }
+            if (Level.Read<IntPtr>(Program, offset) != IntPtr.Zero)
+            {
+                //Level.ScoringData.numTimesHit
+                switch (PlayerData.Version)
+                {
+                    //TODO: double check DLC pointer path
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x18);
+                    default: return Level.Read<int>(Program, -0x4, 0x10);
+                }
+            }
+            return 0;
+        }
+        public int ScoringSuperMeter()
+        {
+            int offset = -0x20;
+            switch (PlayerData.Version)
+            {
+                case PointerVersion.SteamDLC: offset = 0x0; break;
+            }
+            if (Level.Read<IntPtr>(Program, offset) != IntPtr.Zero)
+            {
+                //Level.ScoringData.superMeterUsed
+                switch (PlayerData.Version)
+                {
+                    //TODO: double check DLC pointer path
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x20);
+                    default: return Level.Read<int>(Program, -0x4, 0x18);
+                }
+            }
+            return 0;
+        }
+        public int ScoringCoins()
+        {
+            int offset = -0x20;
+            switch (PlayerData.Version)
+            {
+                case PointerVersion.SteamDLC: offset = 0x0; break;
+            }
+            if (Level.Read<IntPtr>(Program, offset) != IntPtr.Zero)
+            {
+                //Level.ScoringData.coinsCollected
+                switch (PlayerData.Version)
+                {
+                    //TODO: double check DLC pointer path
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x24);
+                    default: return Level.Read<int>(Program, -0x4, 0x1C);
+                }
+            }
+            return 0;
+        }
+        public bool ScoringUseCoinsInsteadOfSuperMeter()
+        {
+            int offset = -0x20;
+            switch (PlayerData.Version)
+            {
+                case PointerVersion.SteamDLC: offset = 0x0; break;
+            }
+            if (Level.Read<IntPtr>(Program, offset) != IntPtr.Zero)
+            {
+                //Level.ScoringData.useCoinsInsteadOfSuperMeter
+                switch (PlayerData.Version)
+                {
+                    //TODO: double check DLC pointer path
+                    case PointerVersion.SteamDLC: return Level.Read<bool>(Program, 0x20, 0x2D);
+                    default: return Level.Read<bool>(Program, -0x4, 0x25);
+                }
+            }
+            return false;
+        }
         public Mode LevelMode()
         {
             //Level.Current.Mode
