@@ -187,7 +187,7 @@ namespace CupheadRunRecap
             if (attemptNode != null)
             {
                 XmlElement levelElement = runRecapTree.CreateElement("Scene");
-                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("name");
 
                 // .SubString(6) removes "scene_" prefix
                 sceneNameAttribute.Value = sceneName.Substring(6);
@@ -245,7 +245,7 @@ namespace CupheadRunRecap
             if (attemptNode != null)
             {
                 XmlElement levelElement = runRecapTree.CreateElement("Scene");
-                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("name");
                 sceneNameAttribute.Value = level;
                 levelElement.Attributes.Append(sceneNameAttribute);
 
@@ -316,7 +316,7 @@ namespace CupheadRunRecap
             if (attemptNode != null)
             {
                 XmlElement levelElement = runRecapTree.CreateElement("Scene");
-                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
+                XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("name");
 
                 // .SubString(6) removes "scene_" prefix
                 sceneNameAttribute.Value = sceneName.Substring(6);
