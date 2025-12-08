@@ -22,6 +22,7 @@ namespace CupheadRunRecap
         public TimerModel Model { get; set; }
         public string ComponentName { get { return "Cuphead Run Recap"; } }
         public const int REFRESH_RATE = 120;
+        public const string RUN_RECAP_TREE_VERSION = "v0.1";
         public const string RUN_RECAP_FILEPATH = "./run_recap.xml";
         public IDictionary<string, Action> ContextMenuControls { get { return null; } }
         //private LogicManager logic;
@@ -31,7 +32,7 @@ namespace CupheadRunRecap
         private bool isRunning = false;
         public XmlDocument runRecapTree;
         public string previousSceneName;
-        public string lastSeenSceneName;
+        //public string lastSeenSceneName;
         //public bool storedScoreboardData = false;
         //public bool savedScoreboardData = false;
         public bool savedSceneData = false;
@@ -122,41 +123,61 @@ namespace CupheadRunRecap
             //log.AddEntry(new EventLogEntry(sceneName));
             //System.Diagnostics.Debug.WriteLine(sceneName);
 
-            // just loading the scoreboard -> mark current loadless time
+
+
+
+            // just loading the scoreboard -> save segment time and level time
             if (sceneName == "scene_win" && isLoading && !savedSceneData)
             {
-                SaveLevelData(lastSeenSceneName);
+                log.AddEntry(new EventLogEntry("Saving Level Data"));
+                SaveLevelData(previousSceneName);
                 //ResetSegmentTiming();
                 StoreScoreboardData();
                 savedSceneData = true;
             }
-            // exiting the scoreboard -> mark current loadless time, scoring data, and save it all to the xml
-            else if (lastSeenSceneName == "scene_win" && isLoading && !savedSceneData)
+            // exiting the scoreboard -> save segment time, scoring data, and save it all to the xml
+            else if (previousSceneName == "scene_win" && isLoading && !savedSceneData)
             {
+                log.AddEntry(new EventLogEntry("Saving Scoreboard Data"));
                 SaveScoreboardData();
                 ClearScoreboardData();
                 //ResetSegmentTiming();
                 savedSceneData = true;
             }
+            // loading without sceneName change -> level retry, so save segment time and level time
+            //else if (isLoading && sceneName == previousSceneName && !savedSceneData)
+            //{
+            //    log.AddEntry(new EventLogEntry("Saving Level Data (Retry)"));
+            //    log.AddEntry(new EventLogEntry("sceneName: " + sceneName));
+            //    log.AddEntry(new EventLogEntry("previousSceneName: " + previousSceneName));
+            //    SaveLevelData(previousSceneName);
+            //    savedSceneData = true;
+            //}
             // any other scene change -> save segment time
             else if (isLoading && !savedSceneData)
             {
-                SaveGenericSceneData(lastSeenSceneName);
+                log.AddEntry(new EventLogEntry("Saving Generic Scene Data"));
+                SaveGenericSceneData(previousSceneName);
                 savedSceneData = true;
             }
 
-            if (!isLoading)
+
+
+            if (isLoading/*sceneName != previousSceneName*/)
+            {
+                //lastSeenSceneName = previousSceneName;
+                previousSceneName = sceneName;
+                //log.AddEntry(new EventLogEntry("Set previousSceneName to " + previousSceneName));
+                //log.AddEntry(new EventLogEntry("Scene change: sceneName " + sceneName + " - previousSceneName " + previousSceneName + " - lastSeenSceneName " + lastSeenSceneName));
+            }
+            else
             {
                 savedSceneData = false;
             }
 
 
-            if (sceneName != previousSceneName)
-            {
-                lastSeenSceneName = previousSceneName;
-                log.AddEntry(new EventLogEntry("Scene change: sceneName " + sceneName + " - previousSceneName " + previousSceneName + " - lastSeenSceneName " + lastSeenSceneName));
-            }
-            previousSceneName = sceneName;
+
+            //previousSceneName = sceneName;
         }
         private void SaveLevelData(string sceneName)
         {
@@ -167,7 +188,9 @@ namespace CupheadRunRecap
             {
                 XmlElement levelElement = runRecapTree.CreateElement("Scene");
                 XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
-                sceneNameAttribute.Value = sceneName;
+
+                // .SubString(6) removes "scene_" prefix
+                sceneNameAttribute.Value = sceneName.Substring(6);
                 levelElement.Attributes.Append(sceneNameAttribute);
 
                 XmlElement levelTimeElement = runRecapTree.CreateElement("LevelTime");
@@ -203,7 +226,7 @@ namespace CupheadRunRecap
         private void StoreScoreboardData()
         {
             //SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
-            level = "scene_win";
+            level = "win";
             log.AddEntry(new EventLogEntry(levelTime.ToString()));
             var scoringHits = memory.ScoringHits();
             hpBonus = (scoringHits >= 3) ? 0 : (3 - scoringHits);
@@ -294,7 +317,9 @@ namespace CupheadRunRecap
             {
                 XmlElement levelElement = runRecapTree.CreateElement("Scene");
                 XmlAttribute sceneNameAttribute = runRecapTree.CreateAttribute("sceneName");
-                sceneNameAttribute.Value = sceneName;
+
+                // .SubString(6) removes "scene_" prefix
+                sceneNameAttribute.Value = sceneName.Substring(6);
                 levelElement.Attributes.Append(sceneNameAttribute);
                 //TODO: add nullability checks?
 
@@ -333,12 +358,17 @@ namespace CupheadRunRecap
             return runRecapTree.SelectSingleNode($".//Attempt[@id='{Model.CurrentState.Run.AttemptHistory.Last().Index + 1}']");
         }
         public void Update(IInvalidator invalidator, LiveSplitState lvstate, float width, float height, LayoutMode mode) { }
-        public void OnReset(object sender, TimerPhase e) { }
+        public void OnReset(object sender, TimerPhase e) {
+            isRunInProgreess = false;
+            savedSceneData = true;
+            previousSceneName = "none";
+        }
         public void OnResume(object sender, EventArgs e) { }
         public void OnPause(object sender, EventArgs e) { }
         public void OnStart(object sender, EventArgs e)
         {
             isRunInProgreess = true;
+            savedSceneData = true;
             try
             {
                 runRecapTree = new XmlDocument();
@@ -350,6 +380,9 @@ namespace CupheadRunRecap
 
                     // Root element
                     XmlElement root = runRecapTree.CreateElement("RunRecap");
+                    XmlAttribute version = runRecapTree.CreateAttribute("version");
+                    version.Value = RUN_RECAP_TREE_VERSION;
+                    root.Attributes.Append(version);
                     runRecapTree.AppendChild(root);
                 }
                 else
