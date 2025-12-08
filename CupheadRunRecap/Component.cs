@@ -22,7 +22,7 @@ namespace CupheadRunRecap
         public TimerModel Model { get; set; }
         public string ComponentName { get { return "Cuphead Run Recap"; } }
         public const int REFRESH_RATE = 120;
-        public const string RUN_RECAP_TREE_VERSION = "v0.1";
+        public const string RUN_RECAP_TREE_VERSION = "v0.2";
         public const string RUN_RECAP_FILEPATH = "./run_recap.xml";
         public IDictionary<string, Action> ContextMenuControls { get { return null; } }
         //private LogicManager logic;
