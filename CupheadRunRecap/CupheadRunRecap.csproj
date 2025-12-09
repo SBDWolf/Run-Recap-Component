@@ -36,6 +36,9 @@
     <Reference Include="LiveSplit.Core">
       <HintPath>..\Livesplit References\LiveSplit.Core.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -59,6 +62,7 @@
       <DependentUpon>ComponentSettings.cs</DependentUpon>
     </Compile>
     <Compile Include="Factory.cs" />
+    <Compile Include="FileTypeRegister.cs" />
     <Compile Include="Game\Enums.cs" />
     <Compile Include="Game\LogManager.cs" />
     <Compile Include="Game\MemoryManager.cs" />
@@ -76,6 +80,8 @@
     <Compile Include="Memory\WinAPI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

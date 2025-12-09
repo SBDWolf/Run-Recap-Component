@@ -39,7 +39,7 @@ namespace CupheadRunRecap
 
         public LogManager()
         {
-            EnableLogging = true;
+            EnableLogging = false;
             Clear();
         }
         public void Clear(bool deleteFile = false)
