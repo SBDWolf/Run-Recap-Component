@@ -22,7 +22,7 @@ namespace CupheadRunRecap
 
         public const int REFRESH_RATE = 120;
         public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
-        public const string RUN_RECAP_TREE_VERSION = "v0.2";
+        public const string RUN_RECAP_TREE_VERSION = "v0.3";
 
         public IDictionary<string, Action> ContextMenuControls => null;
 
@@ -104,6 +104,7 @@ namespace CupheadRunRecap
             JObject attempt = new JObject
             {
                 ["id"] = id,
+                ["startedAt"] = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"),
                 ["scenes"] = new JArray()
             };
 
