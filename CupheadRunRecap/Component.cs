@@ -21,8 +21,8 @@ namespace CupheadRunRecap
         public string ComponentName => "Cuphead Run Recap";
 
         public const int REFRESH_RATE = 120;
-        public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
-        public const string RUN_RECAP_TREE_VERSION = "v0.3";
+        //public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
+        public const string RUN_RECAP_TREE_VERSION = "v0.5";
 
         public IDictionary<string, Action> ContextMenuControls => null;
 
@@ -73,50 +73,92 @@ namespace CupheadRunRecap
             StartComponent();
         }
 
+        private string RunRecapFilePath
+        {
+            get
+            {
+                string lssPath = Model.CurrentState.Run.FilePath;
+
+                // Fallback if there is no splits file loaded
+                if (string.IsNullOrWhiteSpace(lssPath))
+                {
+                    return "./RunRecap_UnsavedSplits.rrc";
+                }
+
+                string splitsName = Path.GetFileNameWithoutExtension(lssPath);
+
+                return $"RunRecap_{splitsName}.rrc";
+            }
+        }
+
         private void LoadOrCreateJson()
         {
-            if (File.Exists(RUN_RECAP_FILEPATH))
+            // TODO: when pushing a new version to the run recap tree, this method should probably check for if the file has been loaded with an obsolete version and convert the file if so
+
+            if (File.Exists(RunRecapFilePath))
             {
-                recapJson = JObject.Parse(File.ReadAllText(RUN_RECAP_FILEPATH));
+                recapJson = JObject.Parse(File.ReadAllText(RunRecapFilePath));
             }
             else
             {
-                recapJson = new JObject
-                {
-                    ["version"] = RUN_RECAP_TREE_VERSION,
-                    ["attempts"] = new JArray()
-                };
+                recapJson = new JObject();
             }
+
+            if (recapJson["version"] == null)
+            {
+                recapJson["version"] = RUN_RECAP_TREE_VERSION;
+            }
+
+            if (recapJson["attempts"] == null || recapJson["attempts"].Type != JTokenType.Array)
+            {
+                recapJson["attempts"] = new JArray();
+            }
+
+            var attempts = (JArray)recapJson["attempts"];
+
+            // rebuild IDs if corrupted or missing
+            for (int i = 0; i < attempts.Count; i++)
+            {
+                attempts[i]["id"] = i;
+            }
+
+            SaveJson();
         }
 
         private JObject GetCurrentAttempt()
         {
-            int id = Model.CurrentState.Run.AttemptHistory.Last().Index + 1;
-            var attempts = (JArray)recapJson["attempts"];
+            var attempts = recapJson?["attempts"] as JArray;
+            if (attempts == null || attempts.Count == 0)
+                return null;
 
-            return attempts.FirstOrDefault(a => (int)a["id"] == id) as JObject;
+            return attempts.Last as JObject;
         }
 
         private JObject CreateNewAttempt()
         {
-            int id = Model.CurrentState.Run.AttemptHistory.Last().Index + 1;
+            JArray attempts = (JArray)recapJson["attempts"];
+
+            int newId = attempts.Count;
+
+            int lssAttemptId = Model.CurrentState.Run.AttemptHistory.Last().Index + 1;
 
             JObject attempt = new JObject
             {
-                ["id"] = id,
+                ["id"] = newId,
+                ["lssAttemptId"] = lssAttemptId,
                 ["startedAt"] = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"),
                 ["scenes"] = new JArray()
             };
 
-            ((JArray)recapJson["attempts"]).Add(attempt);
-            SaveJson();
+            attempts.Add(attempt);
 
+            SaveJson();
             return attempt;
         }
 
         private void SaveJson()
         {
-            File.WriteAllText(RUN_RECAP_FILEPATH, recapJson.ToString());
+            File.WriteAllText(RunRecapFilePath, recapJson.ToString());
         }
 
         public void StartComponent()
@@ -174,6 +216,7 @@ namespace CupheadRunRecap
         {
             string sceneName = memory.SceneName();
             bool isLoading = memory.Loading();
+            float scoringTime = memory.ScoringTime();
 
             // just loading the scoreboard -> save segment time and level time
             if (sceneName == "scene_win" && isLoading && !savedSceneData)
@@ -189,6 +232,13 @@ namespace CupheadRunRecap
                 log.AddEntry(new EventLogEntry("Saving Scoreboard Data"));
                 SaveScoreboardData();
                 ClearScoreboardData();
+                savedSceneData = true;
+            }
+            // loading into a new part of the King Dice fight -> save segment time and level time (using a > 0.2f comparison to prevent this from running in case a frame is missed)
+            if (sceneName.StartsWith("scene_level_dice") && scoringTime > 0.2f && isLoading && !savedSceneData)
+            {
+                log.AddEntry(new EventLogEntry("Saving King Dice Level Data"));
+                SaveLevelData(previousSceneName);
                 savedSceneData = true;
             }
             // loading without sceneName change -> level retry, so save segment time and level time
