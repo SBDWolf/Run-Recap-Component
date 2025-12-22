@@ -13,7 +13,7 @@ Here's what's currently being stored to the file:
 
 
 # Installation Instructions
-* Grab the [latest release](https://github.com/SBDWolf/Run-Recap-Component/releases) (`RunRecap.zip`, NOT the Source Code!)
+* Grab the [latest release](https://github.com/SBDWolf/Run-Recap-Component/releases) (`RunRecap.zip`, NOT the Source code!)
 * Extract all its contents into Livesplits's Components folder
 * Launch Livesplit, then add the Cuphead Run Recap component to your Layout (Right click on the Livesplit window, select Edit Layout, click on the Plus sign, then you should find this component under "Control"
 * By default, the .rrc file will be generated inside of `./Components/Run Recap`. This can be changed within your layout settings
