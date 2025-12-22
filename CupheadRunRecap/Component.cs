@@ -22,7 +22,7 @@ namespace CupheadRunRecap
 
         public const int REFRESH_RATE = 120;
         //public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
-        public const string RUN_RECAP_TREE_VERSION = "v0.5";
+        public const string RUN_RECAP_TREE_VERSION = "v1.0";
 
         public IDictionary<string, Action> ContextMenuControls => null;
 
@@ -73,22 +73,64 @@ namespace CupheadRunRecap
             StartComponent();
         }
 
+        public static string DefaultRunRecapDirectory
+        {
+            get
+            {
+                string exeDir = Path.GetDirectoryName(
+                    typeof(Component).Assembly.Location);
+
+                return Path.Combine(exeDir, "Run Recap");
+            }
+        }
+
         private string RunRecapFilePath
         {
             get
             {
-                string lssPath = Model.CurrentState.Run.FilePath;
+                string baseDir = EnsureRunRecapDirectory();
 
-                // Fallback if there is no splits file loaded
+                string lssPath = Model?.CurrentState?.Run?.FilePath;
+
+                string fileName;
                 if (string.IsNullOrWhiteSpace(lssPath))
                 {
-                    return "./RunRecap_UnsavedSplits.rrc";
+                    fileName = "UnsavedSplits.rrc";
+                }
+                else
+                {
+                    string splitsName = Path.GetFileNameWithoutExtension(lssPath);
+                    fileName = $"{splitsName}.rrc";
                 }
 
-                string splitsName = Path.GetFileNameWithoutExtension(lssPath);
-
-                return $"RunRecap_{splitsName}.rrc";
+                return Path.Combine(baseDir, fileName);
             }
+        }
+
+        private string EnsureRunRecapDirectory()
+        {
+            string dir = settings.RunRecapDirectory;
+
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                dir = DefaultRunRecapDirectory;
+            }
+
+            try
+            {
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+            }
+            catch
+            {
+                // fallback if directory is invalid or inaccessible
+                dir = DefaultRunRecapDirectory;
+                Directory.CreateDirectory(dir);
+            }
+
+            return dir;
         }
 
         private void LoadOrCreateJson()
@@ -398,8 +440,11 @@ namespace CupheadRunRecap
             }
         }
         public Control GetSettingsControl(LayoutMode mode) { return settings; }
-        public void SetSettings(XmlNode document) { settings.SetSettings(document); }
-        public XmlNode GetSettings(XmlDocument document) { return settings.UpdateSettings(document); }
+        public void SetSettings(XmlNode document) { 
+            settings.SetSettings(document);
+            settings.RunRecapDirectory = EnsureRunRecapDirectory();
+        }
+        public XmlNode GetSettings(XmlDocument document) { return settings.GetSettings(document); }
         public void DrawHorizontal(Graphics g, LiveSplitState state, float height, Region clipRegion) { }
         public void DrawVertical(Graphics g, LiveSplitState state, float width, Region clipRegion) { }
         public float HorizontalWidth { get { return 0; } }
