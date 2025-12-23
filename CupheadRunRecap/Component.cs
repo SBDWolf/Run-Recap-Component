@@ -12,6 +12,8 @@ using LiveSplit.Options;
 using System.Linq;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace CupheadRunRecap
 {
@@ -22,7 +24,7 @@ namespace CupheadRunRecap
 
         public const int REFRESH_RATE = 120;
         //public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
-        public const string RUN_RECAP_TREE_VERSION = "v1.0";
+        public const string RUN_RECAP_TREE_VERSION = "v1.1";
 
         public IDictionary<string, Action> ContextMenuControls => null;
 
@@ -156,7 +158,37 @@ namespace CupheadRunRecap
                 recapJson["attempts"] = new JArray();
             }
 
+            ConvertOldVersionsAndFixIds();
+            SaveJson();
+        }
+
+        private void ConvertOldVersionsAndFixIds()
+        {
             var attempts = (JArray)recapJson["attempts"];
+
+            // convert from v1.0
+            if (recapJson["version"].ToString() == "v1.0")
+            {
+                for (int i = 0; i < attempts.Count; i++)
+                {
+                    var scenes = (JArray)attempts[i]["scenes"];
+                    for (int j = 0; j < scenes.Count; j++)
+                    {
+                        // fix level time being a culture-variant string on prior versions
+                        JToken levelTimeToken = scenes[j]["levelTime"];
+                        if (levelTimeToken == null || levelTimeToken.Type != JTokenType.String)
+                            continue;
+
+                        string levelTimeStr = levelTimeToken.ToString();
+                        if (TryParseCultureAgnosticFloat(levelTimeStr, out float levelTime))
+                        {
+                            levelTime = (float)Math.Truncate(levelTime * 100) / 100;
+                            scenes[j]["levelTime"] = levelTime;
+                        }
+                    }
+                }
+                recapJson["version"] = RUN_RECAP_TREE_VERSION;
+            }
 
             // rebuild IDs if corrupted or missing
             for (int i = 0; i < attempts.Count; i++)
@@ -164,9 +196,42 @@ namespace CupheadRunRecap
                 attempts[i]["id"] = i;
             }
 
-            SaveJson();
         }
+        private bool TryParseCultureAgnosticFloat(string input, out float value)
+        {
+            value = 0f;
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
 
+            input = input.Trim();
+
+            int lastDot = input.LastIndexOf('.');
+            int lastComma = input.LastIndexOf(',');
+
+            // determine decimal separator by last occurrence
+            char decimalSeparator;
+            if (lastDot > lastComma)
+            {
+                decimalSeparator = '.';
+            }
+            else
+            {
+                decimalSeparator = ',';
+            }
+
+            // remove all integer separators, and replace the decimal separator with a period
+            string cleaned = input
+                .Replace(decimalSeparator == '.' ? "," : ".", "")
+                .Replace(decimalSeparator, '.');
+
+            return float.TryParse(
+                cleaned,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out value);
+        }
         private JObject GetCurrentAttempt()
         {
             var attempts = recapJson?["attempts"] as JArray;
@@ -321,7 +386,7 @@ namespace CupheadRunRecap
             JObject sceneObj = new JObject
             {
                 ["name"] = sceneName.Substring(6),
-                ["levelTime"] = ((float)Math.Truncate(memory.ScoringTime() * 100) / 100).ToString("F2"),
+                ["levelTime"] = ((float)Math.Truncate(memory.ScoringTime() * 100) / 100),
                 ["endTime"] = FormatTime(SegmentEndTime.Value)
             };
 
