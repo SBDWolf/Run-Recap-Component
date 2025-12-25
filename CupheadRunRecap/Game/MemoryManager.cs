@@ -189,6 +189,25 @@ namespace CupheadRunRecap
             }
             return false;
         }
+        public Mode ScoringDifficulty()
+        {
+            int offset = -0x20;
+            switch (PlayerData.Version)
+            {
+                case PointerVersion.SteamDLC: offset = 0x0; break;
+            }
+            if (Level.Read<IntPtr>(Program, offset) != IntPtr.Zero)
+            {
+                //Level.ScoringData.difficulty
+                switch (PlayerData.Version)
+                {
+                    //TODO: double check DLC pointer path
+                    case PointerVersion.SteamDLC: return (Mode)Level.Read<int>(Program, 0x20, 0x28);
+                    default: return (Mode)Level.Read<int>(Program, -0x4, 0x20);
+                }
+            }
+            return Mode.None;
+        }
         public Mode LevelMode()
         {
             //Level.Current.Mode
