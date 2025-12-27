@@ -29,6 +29,11 @@ namespace CupheadRunRecap
             set => txtFilepath.Text = value ?? string.Empty;
         }
 
+        public bool StarSkipDisplayAsInt
+        {
+           get => chkStarSkipDisplayMethod.Checked;
+        }
+
         public XmlNode GetSettings(XmlDocument document)
         {
             XmlElement xmlSettings = document.CreateElement("Settings");
@@ -58,6 +63,11 @@ namespace CupheadRunRecap
                     txtFilepath.Text = dialog.SelectedPath;
                 }
             }
+        }
+
+        private void chkStarSkipDisplayMethod_CheckedChanged(object sender, EventArgs e)
+        {
+            //chkStarSkipDisplayMethod.Checked = !chkStarSkipDisplayMethod.Checked;
         }
     }
 }

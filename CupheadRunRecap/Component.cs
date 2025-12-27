@@ -25,7 +25,7 @@ namespace CupheadRunRecap
 
         public const int REFRESH_RATE = 120;
         //public const string RUN_RECAP_FILEPATH = "./run_recap.rrc";
-        public const string RUN_RECAP_TREE_VERSION = "v1.1";
+        public const string RUN_RECAP_TREE_VERSION = "v1.2";
 
         public IDictionary<string, Action> ContextMenuControls => null;
 
@@ -46,11 +46,14 @@ namespace CupheadRunRecap
         public int superMeter;
         public int coins;
         public bool useCoinsInsteadOfSuperMeter;
+        public Mode difficulty;
+        public int starSkipAmount;
 
         public int starSkipCounter;
+        public float starSkipCounterDecimal;
         public TimeSpan? DifficultyTickerStartTime;
         public TimeSpan? DifficultyTickerEndTime;
-        public Mode lastDifficulty;
+
 
         public TimeSpan? SegmentStartTime;
         public TimeSpan? SegmentEndTime;
@@ -309,7 +312,14 @@ namespace CupheadRunRecap
                         {
                             log.AddEntry(new EventLogEntry(ex.ToString()));
                         }
-                        Model.CurrentState.Run.Metadata.SetCustomVariable("Star Skip Counter", starSkipCounter.ToString());
+                        if (!settings.StarSkipDisplayAsInt)
+                        {
+                            Model.CurrentState.Run.Metadata.SetCustomVariable("Star Skip Counter", starSkipCounter.ToString());
+                        }
+                        else
+                        {
+                            Model.CurrentState.Run.Metadata.SetCustomVariable("Star Skip Counter", (Math.Truncate(starSkipCounterDecimal * 100) / 100).ToString());
+                        }
 
                         stopWatch.Stop();
 
@@ -333,7 +343,6 @@ namespace CupheadRunRecap
             //log.AddEntry(new EventLogEntry("sceneName new new new: " + sceneName.ToString()));
             bool isLoading = memory.Loading();
             float scoringTime = memory.ScoringTime();
-            Mode scoringDifficulty = memory.ScoringDifficulty();
             //log.AddEntry(new EventLogEntry("scoringDifficulty new new new: " + scoringDifficulty.ToString()));
 
             // just loading the scoreboard -> save segment time and level time
@@ -383,11 +392,6 @@ namespace CupheadRunRecap
             if (isLoading)
             {
                 previousSceneName = sceneName;
-                Mode difficulty = memory.ScoringDifficulty();
-                if (difficulty != Mode.None)
-                {
-                    lastDifficulty = difficulty;
-                }
             }
             else
             {
@@ -439,39 +443,51 @@ namespace CupheadRunRecap
             log.AddEntry(new EventLogEntry("DifficultyTickerEndTime after assignment: " + DifficultyTickerEndTime.Value.TotalMilliseconds.ToString()));
             TimeSpan? difficultyTickerTimeDifference = DifficultyTickerEndTime - DifficultyTickerStartTime;
             log.AddEntry(new EventLogEntry("difficultyTickerTimeDifference: " + difficultyTickerTimeDifference.Value.TotalMilliseconds.ToString()));
-            log.AddEntry(new EventLogEntry("difficulty: " + lastDifficulty.ToString()));
-            if (lastDifficulty == Mode.Easy)
+            log.AddEntry(new EventLogEntry("difficulty: " + difficulty.ToString()));
+            if (difficulty == Mode.Easy)
             {
                 if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 100)
                 {
                     log.AddEntry(new EventLogEntry("Easy mode incrementing starSkipCounter"));
                     starSkipCounter += 1;
+                    starSkipCounterDecimal += 1;
+                    starSkipAmount = 1;
                 }
             }
-            else if (lastDifficulty == Mode.Normal)
+            else if (difficulty == Mode.Normal)
             {
                 if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 100) {
                     starSkipCounter += 2;
+                    starSkipCounterDecimal += 1;
+                    starSkipAmount = 2;
                 }
                 else if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 600)
                 {
                     log.AddEntry(new EventLogEntry("Normal mode incrementing starSkipCounter"));
                     starSkipCounter += 1;
+                    starSkipCounterDecimal += 0.5f;
+                    starSkipAmount = 1;
                 }
             }
-            else if (lastDifficulty == Mode.Hard)
+            else if (difficulty == Mode.Hard)
             {
                 if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 100)
                 {
                     starSkipCounter += 3;
+                    starSkipCounterDecimal += 1;
+                    starSkipAmount = 3;
                 }
                 else if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 600)
                 {
                     starSkipCounter += 2;
+                    starSkipCounterDecimal += (1/3) * 2;
+                    starSkipAmount = 2;
                 }
                 else if (difficultyTickerTimeDifference.Value.TotalMilliseconds < 1100)
                 {
                     starSkipCounter += 1;
+                    starSkipCounterDecimal += 1/3;
+                    starSkipAmount = 1;
                 }
             }
 
@@ -505,6 +521,7 @@ namespace CupheadRunRecap
             superMeter = memory.ScoringSuperMeter();
             coins = memory.ScoringCoins();
             useCoinsInsteadOfSuperMeter = memory.ScoringUseCoinsInsteadOfSuperMeter();
+            difficulty = memory.ScoringDifficulty();
         }
         private void SaveScoreboardData()
         {
@@ -516,19 +533,35 @@ namespace CupheadRunRecap
             JObject sceneObj = new JObject
             {
                 ["name"] = level,
-                ["hp"] = hpBonus,
-                ["parries"] = parries,
             };
+            if (hpBonus != 0)
+            {
+                sceneObj["hp"] = hpBonus;
+            }
+            if (hpBonus != 0)
+            {
+                sceneObj["parries"] = parries;
+            }
 
             if (!useCoinsInsteadOfSuperMeter)
             {
-                sceneObj["superMeter"] = superMeter;
+                if (superMeter != 0)
+                {
+                    sceneObj["superMeter"] = superMeter;
+                }
             }
             else
             {
-                sceneObj["coins"] = coins;
+                if (coins != 0)
+                {
+                    sceneObj["coins"] = coins;
+                }
             }
 
+            if (starSkipAmount != 0)
+            {
+                sceneObj["starSkips"] = starSkipAmount;
+            }
             sceneObj["endTime"] = FormatTime(SegmentEndTime.Value);
 
             ((JArray)attempt["scenes"]).Add(sceneObj);
@@ -543,6 +576,8 @@ namespace CupheadRunRecap
             superMeter = 0;
             coins = 0;
             useCoinsInsteadOfSuperMeter = false;
+            difficulty = Mode.None;
+            starSkipAmount = 0;
         }
         private void SaveGenericSceneData(string sceneName)
         {
