@@ -44,12 +44,14 @@ namespace CupheadRunRecap
         {
             var element = (XmlElement)settings;
             txtFilepath.Text = SettingsHelper.ParseString(element["Filepath"]);
+            chkStarSkipDisplayMethod.Checked = SettingsHelper.ParseBool(element["StarSkipDisplayMethod"]);
         }
 
         private int CreateSettingsNode(XmlDocument document, XmlElement parent)
         {
             return SettingsHelper.CreateSetting(document, parent, "Version", "1.0") ^
-                SettingsHelper.CreateSetting(document, parent, "Filepath", txtFilepath.Text);
+                SettingsHelper.CreateSetting(document, parent, "Filepath", txtFilepath.Text) ^
+                SettingsHelper.CreateSetting(document, parent, "StarSkipDisplayMethod", chkStarSkipDisplayMethod.Checked);
         }
 
         private void btnBrowse_Click(object sender, EventArgs e)

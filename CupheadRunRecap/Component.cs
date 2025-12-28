@@ -173,29 +173,25 @@ namespace CupheadRunRecap
 
         private void ConvertOldVersionsAndFixIds()
         {
+            log.AddEntry(new EventLogEntry("hello is this even running?"));
             var attempts = (JArray)recapJson["attempts"];
 
-            // convert from v1.0
-            if (recapJson["version"].ToString() == "v1.0")
-            {
-                for (int i = 0; i < attempts.Count; i++)
-                {
-                    var scenes = (JArray)attempts[i]["scenes"];
-                    for (int j = 0; j < scenes.Count; j++)
-                    {
-                        // fix level time being a culture-variant string on prior versions
-                        JToken levelTimeToken = scenes[j]["levelTime"];
-                        if (levelTimeToken == null || levelTimeToken.Type != JTokenType.String)
-                            continue;
+            string recapJsonVersion = recapJson["version"].ToString();
 
-                        string levelTimeStr = levelTimeToken.ToString();
-                        if (TryParseCultureAgnosticFloat(levelTimeStr, out float levelTime))
-                        {
-                            levelTime = (float)Math.Truncate(levelTime * 100) / 100;
-                            scenes[j]["levelTime"] = levelTime;
-                        }
-                    }
-                }
+            // convert from v1.0
+            if (recapJsonVersion == "v1.0")
+            {
+                FixCultureVariantStrings(attempts);
+                RemoveZeroValueFields(attempts);
+                recapJson["version"] = RUN_RECAP_TREE_VERSION;
+            }
+
+            // convert from v1.1
+            if (recapJsonVersion == "v1.1")
+            {
+                log.AddEntry(new EventLogEntry("detected version 1.1"));
+                RemoveZeroValueFields(attempts);
+                log.AddEntry(new EventLogEntry("saving new run recap version"));
                 recapJson["version"] = RUN_RECAP_TREE_VERSION;
             }
 
@@ -203,6 +199,73 @@ namespace CupheadRunRecap
             for (int i = 0; i < attempts.Count; i++)
             {
                 attempts[i]["id"] = i;
+            }
+
+        }
+        private void FixCultureVariantStrings(JArray attempts)
+        {
+            for (int i = 0; i < attempts.Count; i++)
+            {
+                var scenes = (JArray)attempts[i]["scenes"];
+                for (int j = 0; j < scenes.Count; j++)
+                {
+                    // fix level time being a culture-variant string on prior versions
+                    JToken levelTimeToken = scenes[j]["levelTime"];
+                    if (levelTimeToken == null || levelTimeToken.Type != JTokenType.String)
+                        continue;
+
+                    string levelTimeStr = levelTimeToken.ToString();
+                    if (TryParseCultureAgnosticFloat(levelTimeStr, out float levelTime))
+                    {
+                        levelTime = (float)Math.Truncate(levelTime * 100) / 100;
+                        scenes[j]["levelTime"] = levelTime;
+                    }
+                }
+            }
+        }
+
+        private void RemoveZeroValueFields(JArray attempts)
+        {
+            try
+            {
+                foreach (JObject attempt in attempts)
+                {
+
+                    var scenes = (JArray)attempt["scenes"];
+                    foreach (JObject scene in scenes)
+                    {
+                        // we only need to handle win screen scenes as legacy versions did not have the possibility of generating 0 values elsewhere
+                        if (scene["name"]?.ToString() != "win")
+                            continue;
+
+                        List<string> propertiesToCheck = new List<string>()
+                        {
+                            "hp",
+                            "parries",
+                            "superMeter",
+                            "coins",
+                        };
+
+                        List<string> propertiesToRemove = new List<string>();
+
+                        foreach (string property in propertiesToCheck)
+                        {
+                            if (scene[property]?.Value<int>() == 0)
+                            {
+                                propertiesToRemove.Add(property);
+                            }
+                        }
+
+                        foreach (string propName in propertiesToRemove)
+                        {
+                            scene.Remove(propName);
+                        }
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                log.AddEntry(new EventLogEntry(ex.ToString()));
             }
 
         }
@@ -521,7 +584,11 @@ namespace CupheadRunRecap
             superMeter = memory.ScoringSuperMeter();
             coins = memory.ScoringCoins();
             useCoinsInsteadOfSuperMeter = memory.ScoringUseCoinsInsteadOfSuperMeter();
-            difficulty = memory.ScoringDifficulty();
+            var currentDifficulty = memory.ScoringDifficulty();
+            if (currentDifficulty != Mode.None)
+            {
+                difficulty = currentDifficulty;
+            }
         }
         private void SaveScoreboardData()
         {
@@ -605,6 +672,7 @@ namespace CupheadRunRecap
             savedSceneData = true;
             previousSceneName = "scene_none";
             starSkipCounter = 0;
+            starSkipCounterDecimal = 0;
         }
         public void OnResume(object sender, EventArgs e) { }
         public void OnPause(object sender, EventArgs e) { }
@@ -619,6 +687,7 @@ namespace CupheadRunRecap
 
             previousSceneName = "scene_none";
             starSkipCounter = 0;
+            starSkipCounterDecimal = 0;
             SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
             log.AddEntry(new EventLogEntry("Finishing OnStart"));
         }
