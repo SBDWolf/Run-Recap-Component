@@ -402,9 +402,12 @@ namespace CupheadRunRecap
         }
         private void MainLoop()
         {
+            
             string sceneName = memory.SceneName();
+            log.AddEntry(new EventLogEntry(sceneName));
             //log.AddEntry(new EventLogEntry("sceneName new new new: " + sceneName.ToString()));
             bool isLoading = memory.Loading();
+            log.AddEntry(new EventLogEntry(isLoading.ToString()));
             float scoringTime = memory.ScoringTime();
             //log.AddEntry(new EventLogEntry("scoringDifficulty new new new: " + scoringDifficulty.ToString()));
 

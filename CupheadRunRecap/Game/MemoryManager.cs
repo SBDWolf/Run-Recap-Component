@@ -107,7 +107,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x1C);
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x20);
                     default: return Level.Read<int>(Program, -0x4, 0x14);
                 }
             }
@@ -126,7 +126,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x18);
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x1C);
                     default: return Level.Read<int>(Program, -0x4, 0x10);
                 }
             }
@@ -145,7 +145,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x20);
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x24);
                     default: return Level.Read<int>(Program, -0x4, 0x18);
                 }
             }
@@ -164,7 +164,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x24);
+                    case PointerVersion.SteamDLC: return Level.Read<int>(Program, 0x20, 0x28);
                     default: return Level.Read<int>(Program, -0x4, 0x1C);
                 }
             }
@@ -183,7 +183,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return Level.Read<bool>(Program, 0x20, 0x2D);
+                    case PointerVersion.SteamDLC: return Level.Read<bool>(Program, 0x20, 0x31);
                     default: return Level.Read<bool>(Program, -0x4, 0x25);
                 }
             }
@@ -202,7 +202,7 @@ namespace CupheadRunRecap
                 switch (PlayerData.Version)
                 {
                     //TODO: double check DLC pointer path
-                    case PointerVersion.SteamDLC: return (Mode)Level.Read<int>(Program, 0x20, 0x28);
+                    case PointerVersion.SteamDLC: return (Mode)Level.Read<int>(Program, 0x20, 0x2C);
                     default: return (Mode)Level.Read<int>(Program, -0x4, 0x20);
                 }
             }
