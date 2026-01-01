@@ -29,11 +29,6 @@ namespace CupheadRunRecap
             set => txtFilepath.Text = value ?? string.Empty;
         }
 
-        public bool StarSkipDisplayAsInt
-        {
-           get => chkStarSkipDisplayMethod.Checked;
-        }
-
         public XmlNode GetSettings(XmlDocument document)
         {
             XmlElement xmlSettings = document.CreateElement("Settings");
@@ -44,14 +39,12 @@ namespace CupheadRunRecap
         {
             var element = (XmlElement)settings;
             txtFilepath.Text = SettingsHelper.ParseString(element["Filepath"]);
-            chkStarSkipDisplayMethod.Checked = SettingsHelper.ParseBool(element["StarSkipDisplayMethod"]);
         }
 
         private int CreateSettingsNode(XmlDocument document, XmlElement parent)
         {
             return SettingsHelper.CreateSetting(document, parent, "Version", "1.0") ^
-                SettingsHelper.CreateSetting(document, parent, "Filepath", txtFilepath.Text) ^
-                SettingsHelper.CreateSetting(document, parent, "StarSkipDisplayMethod", chkStarSkipDisplayMethod.Checked);
+                SettingsHelper.CreateSetting(document, parent, "Filepath", txtFilepath.Text);
         }
 
         private void btnBrowse_Click(object sender, EventArgs e)
@@ -65,11 +58,6 @@ namespace CupheadRunRecap
                     txtFilepath.Text = dialog.SelectedPath;
                 }
             }
-        }
-
-        private void chkStarSkipDisplayMethod_CheckedChanged(object sender, EventArgs e)
-        {
-            //chkStarSkipDisplayMethod.Checked = !chkStarSkipDisplayMethod.Checked;
         }
     }
 }
