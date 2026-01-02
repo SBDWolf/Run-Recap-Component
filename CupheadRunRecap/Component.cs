@@ -34,7 +34,7 @@ namespace CupheadRunRecap
         private ComponentSettings settings;
 
         private bool isRunning = false;
-        private bool isRunInProgreess = false;
+        private bool isRunInProgress = false;
         private bool savedSceneData = false;
 
         public string previousSceneName;
@@ -172,7 +172,6 @@ namespace CupheadRunRecap
 
         private void ConvertOldVersionsAndFixIds()
         {
-            log.AddEntry(new EventLogEntry("hello is this even running?"));
             var attempts = (JArray)recapJson["attempts"];
 
             string recapJsonVersion = recapJson["version"].ToString();
@@ -365,7 +364,8 @@ namespace CupheadRunRecap
                         stopWatch.Start();
                         try
                         {
-                            if (isRunInProgreess)
+                            bool.TryParse(Model.CurrentState.Run.Metadata.CustomVariableValue("is run in progress"), out isRunInProgress);
+                            if (isRunInProgress && Model.CurrentState.CurrentSplitIndex < Model.CurrentState.Run.Count)
                             {
                                 MainLoop();
                             }
@@ -560,7 +560,6 @@ namespace CupheadRunRecap
         }
         public void Update(IInvalidator invalidator, LiveSplitState lvstate, float width, float height, LayoutMode mode) { }
         public void OnReset(object sender, TimerPhase e) {
-            isRunInProgreess = false;
             savedSceneData = true;
             previousSceneName = "scene_none";
             starSkipCounter = 0;
@@ -571,26 +570,27 @@ namespace CupheadRunRecap
         private void OnStart(object sender, EventArgs e)
         {
             log.AddEntry(new EventLogEntry("Starting OnStart"));
-            isRunInProgreess = true;
-            savedSceneData = true;
+            bool.TryParse(Model.CurrentState.Run.Metadata.CustomVariableValue("is run in progress"), out isRunInProgress);
+            if (isRunInProgress)
+            {
+                savedSceneData = true;
 
-            LoadOrCreateJson();
-            CreateNewAttempt();
+                LoadOrCreateJson();
+                CreateNewAttempt();
 
-            previousSceneName = "scene_none";
-            starSkipCounter = 0;
-            starSkipCounterOld = 0;
-            SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
+                previousSceneName = "scene_none";
+                starSkipCounter = 0;
+                starSkipCounterOld = 0;
+                SegmentStartTime = Model.CurrentState.CurrentTime.GameTime;
+            }
             log.AddEntry(new EventLogEntry("Finishing OnStart"));
         }
         public void OnUndoSplit(object sender, EventArgs e) { }
         public void OnSkipSplit(object sender, EventArgs e) { }
         public void OnSplit(object sender, EventArgs e) {
             // if the final split has been hit, save data about the final segment
-            if (Model.CurrentState.CurrentSplitIndex >= Model.CurrentState.Run.Count)
+            if (Model.CurrentState.CurrentSplitIndex >= Model.CurrentState.Run.Count && isRunInProgress)
             {
-                isRunInProgreess = false;
-
                 // if we're in the middle of a level, save that level's data
                 if (sceneName.StartsWith("scene_level"))
                 {
